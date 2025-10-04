@@ -78,7 +78,7 @@ This project allows users to **analyze PDF invoices interactively** using Stream
 
 ## 🧑‍💻 Contribution
 
-Contributions are welcome! Feel free to submit pull requests or report issues on the [Issues page](https://github.com/your-username/invoice-analysis/issues).
+Contributions are welcome! Feel free to submit pull requests or report issues on the [Issues page](https://github.com/IsaacMartins12/Invoice_Analysis/issues).
 
 ### Contribution Steps
 
