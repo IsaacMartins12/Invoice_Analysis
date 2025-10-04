@@ -1,4 +1,4 @@
-# 📊 Interactive Invoice Analysis with Streamlit
+# 📊 Interactive Invoice Analysis with Streamlit (Only Bradesco Bank Invoices)
 
 ![Alt text](./images/initial.png)
 
