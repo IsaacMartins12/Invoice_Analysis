@@ -19,67 +19,69 @@ export default function Invoices() {
     setInvoices(invoices.filter((inv) => inv.id !== id));
   }
 
-  if (loading) return <p className="text-gray-500">Carregando...</p>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">📁 Minhas Faturas</h1>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold">📁 Faturas</h1>
         <Link
           to="/upload"
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition text-sm"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition text-sm font-medium"
         >
-          + Nova Fatura
+          + Nova
         </Link>
       </div>
 
       {invoices.length === 0 ? (
-        <p className="text-gray-400 text-center py-8">Nenhuma fatura cadastrada ainda.</p>
+        <p className="text-gray-400 text-center py-10">Nenhuma fatura ainda.</p>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left px-4 py-3">Período</th>
-                <th className="text-left px-4 py-3">Banco</th>
-                <th className="text-left px-4 py-3">Arquivo</th>
-                <th className="text-right px-4 py-3">Total</th>
-                <th className="text-right px-4 py-3">Transações</th>
-                <th className="text-right px-4 py-3">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-3">
+        <div className="space-y-3">
+          {invoices.map((inv) => (
+            <div
+              key={inv.id}
+              className="bg-white rounded-xl p-4 border shadow-sm"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-800">
                     {String(inv.month).padStart(2, '0')}/{inv.year}
-                  </td>
-                  <td className="px-4 py-3">{inv.bank || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500">{inv.file_name}</td>
-                  <td className="px-4 py-3 text-right font-medium">
-                    R$ {inv.total_amount.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-500">
-                    {inv.transaction_count}
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <Link
-                      to={`/invoices/${inv.id}`}
-                      className="text-indigo-600 hover:underline"
-                    >
-                      Ver
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(inv.id)}
-                      className="text-red-500 hover:underline"
-                    >
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {inv.bank && (
+                      <span className="ml-2 text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+                        {inv.bank}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {inv.file_name} · {inv.transaction_count} transações
+                  </p>
+                </div>
+                <p className="font-bold text-gray-800">
+                  R$ {inv.total_amount.toFixed(2)}
+                </p>
+              </div>
+              <div className="flex gap-3 mt-3 pt-3 border-t">
+                <Link
+                  to={`/invoices/${inv.id}`}
+                  className="text-sm text-indigo-600 font-medium hover:underline"
+                >
+                  Ver detalhes
+                </Link>
+                <button
+                  onClick={() => handleDelete(inv.id)}
+                  className="text-sm text-red-500 font-medium hover:underline"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

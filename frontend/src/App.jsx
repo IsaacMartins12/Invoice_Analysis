@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import Upload from './pages/Upload';
 import Invoices from './pages/Invoices';
 import InvoiceDetail from './pages/InvoiceDetail';
+import CategoryDetail from './pages/CategoryDetail';
+import Transactions from './pages/Transactions';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="upload" element={<Upload />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="invoices/:id" element={<InvoiceDetail />} />
+        <Route path="category/:name" element={<CategoryDetail />} />
+        <Route path="transactions" element={<Transactions />} />
       </Route>
     </Routes>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import api from '../services/api';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#06b6d4', '#eab308', '#ef4444', '#64748b', '#84cc16'];
@@ -28,126 +29,110 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-gray-500">Carregando...</p>;
-  if (!summary || summary.transaction_count === 0) {
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-400 text-lg">Nenhuma fatura encontrada.</p>
-        <p className="text-gray-400 mt-2">Faça upload da sua primeira fatura para começar!</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
       </div>
     );
   }
 
-  const categoryData = Object.entries(summary.by_category).map(([name, data]) => ({
-    name: `${EMOJI_MAP[name] || '📦'} ${name}`,
-    value: data.total,
-    count: data.count,
-  }));
+  if (!summary || summary.transaction_count === 0) {
+    return (
+      <div className="text-center py-16 px-4">
+        <div className="text-6xl mb-4">📊</div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Nenhuma fatura ainda</h2>
+        <p className="text-gray-400 mb-6">Faça upload da sua primeira fatura para começar a acompanhar seus gastos</p>
+        <Link
+          to="/upload"
+          className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium"
+        >
+          📤 Enviar Fatura
+        </Link>
+      </div>
+    );
+  }
+
+  const categoryData = Object.entries(summary.by_category)
+    .map(([name, data]) => ({
+      name,
+      emoji: EMOJI_MAP[name] || '📦',
+      value: data.total,
+      count: data.count,
+    }))
+    .sort((a, b) => b.value - a.value);
 
   const monthData = Object.entries(summary.by_month).map(([month, total]) => ({
-    name: month,
+    name: month.slice(5), // just MM
+    fullName: month,
     total,
   }));
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <p className="text-sm text-gray-500">Total Gasto</p>
-          <p className="text-2xl font-bold text-indigo-600">R$ {summary.total_spending.toFixed(2)}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <p className="text-sm text-gray-500">Transações</p>
-          <p className="text-2xl font-bold text-gray-800">{summary.transaction_count}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <p className="text-sm text-gray-500">Categorias</p>
-          <p className="text-2xl font-bold text-gray-800">{Object.keys(summary.by_category).length}</p>
+      {/* Total card */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+        <p className="text-sm opacity-80">Total gasto</p>
+        <p className="text-3xl font-bold mt-1">R$ {summary.total_spending.toFixed(2)}</p>
+        <div className="flex gap-4 mt-3 text-sm opacity-80">
+          <span>{summary.transaction_count} transações</span>
+          <span>•</span>
+          <span>{Object.keys(summary.by_category).length} categorias</span>
         </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bar chart - by category */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-lg font-semibold mb-4">Gastos por Categoria</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={categoryData} layout="vertical" margin={{ left: 120 }}>
-              <XAxis type="number" tickFormatter={(v) => `R$${v}`} />
-              <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => `R$ ${v.toFixed(2)}`} />
-              <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Pie chart */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-lg font-semibold mb-4">Distribuição (%)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label={({ name, percent }) => `${name.split(' ').slice(1).join(' ')} ${(percent * 100).toFixed(0)}%`}
-                labelLine={false}
+      {/* Category cards - clickable */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Gastos por Categoria</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {categoryData.map((cat, index) => (
+            <Link
+              key={cat.name}
+              to={`/category/${encodeURIComponent(cat.name)}`}
+              className="bg-white rounded-xl p-4 border shadow-sm hover:shadow-md transition flex items-center gap-4 active:scale-[0.98]"
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                style={{ backgroundColor: `${COLORS[index % COLORS.length]}20` }}
               >
-                {categoryData.map((_, index) => (
+                {cat.emoji}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-800 truncate">{cat.name}</p>
+                <p className="text-sm text-gray-400">{cat.count} transações</p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-gray-800">R$ {cat.value.toFixed(2)}</p>
+                <p className="text-xs text-gray-400">
+                  {((cat.value / summary.total_spending) * 100).toFixed(0)}%
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Monthly evolution chart */}
+      {monthData.length > 0 && (
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Evolução Mensal</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={monthData}>
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11 }} width={60} />
+              <Tooltip
+                formatter={(v) => `R$ ${v.toFixed(2)}`}
+                labelFormatter={(label) => `Mês ${label}`}
+              />
+              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                {monthData.map((_, index) => (
                   <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
-              </Pie>
-              <Tooltip formatter={(v) => `R$ ${v.toFixed(2)}`} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Monthly evolution */}
-      {monthData.length > 1 && (
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-lg font-semibold mb-4">Evolução Mensal</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={monthData}>
-              <XAxis dataKey="name" />
-              <YAxis tickFormatter={(v) => `R$${v}`} />
-              <Tooltip formatter={(v) => `R$ ${v.toFixed(2)}`} />
-              <Bar dataKey="total" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
-
-      {/* Category table */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h2 className="text-lg font-semibold mb-4">Detalhamento por Categoria</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2">Categoria</th>
-              <th className="text-right py-2">Total</th>
-              <th className="text-right py-2">%</th>
-              <th className="text-right py-2">Itens</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(summary.by_category).map(([name, data]) => (
-              <tr key={name} className="border-b last:border-0">
-                <td className="py-2">{EMOJI_MAP[name] || '📦'} {name}</td>
-                <td className="text-right py-2">R$ {data.total.toFixed(2)}</td>
-                <td className="text-right py-2 text-gray-500">
-                  {((data.total / summary.total_spending) * 100).toFixed(1)}%
-                </td>
-                <td className="text-right py-2 text-gray-500">{data.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
