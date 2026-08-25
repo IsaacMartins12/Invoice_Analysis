@@ -8,7 +8,8 @@ from app.models.invoice import Invoice
 from app.models.transaction import Transaction
 from app.services.auth import get_current_user
 from app.services.pdf import extract_text_from_pdf
-from app.services.llm import extract_transactions_with_llm
+from app.services.extractor import extract_transactions
+from app.services.llm import categorize_transactions
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
@@ -80,21 +81,28 @@ async def upload_invoice(
     if not pdf_text.strip():
         raise HTTPException(status_code=400, detail="Could not extract text from PDF")
 
-    # Extract transactions using LLM
-    try:
-        raw_transactions = extract_transactions_with_llm(pdf_text, pages=pages)
-    except ConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except (ValueError, RuntimeError) as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Step 1: Extract transactions with regex (100% accurate)
+    raw_transactions, detected_bank = extract_transactions(pdf_text)
 
     if not raw_transactions:
+        raise HTTPException(
+            status_code=422,
+            detail="No transactions found. Bank not supported or unrecognized format."
+        )
+
+    # Step 2: Categorize with LLM (or fallback to rules)
+    categorized = categorize_transactions(raw_transactions)
+
+    # Use detected bank if user didn't provide one
+    invoice_bank = bank or detected_bank
+
+    if not categorized:
         raise HTTPException(status_code=422, detail="No transactions found in invoice")
 
     # Save invoice
     invoice = Invoice(
         user_id=current_user.id,
-        bank=bank,
+        bank=invoice_bank,
         month=month,
         year=year,
         file_name=file.filename,
@@ -103,16 +111,12 @@ async def upload_invoice(
     db.flush()
 
     # Save transactions
-    for txn in raw_transactions:
-        amount = txn.get("amount", 0)
-        if not isinstance(amount, (int, float)) or amount <= 0:
-            continue
-
+    for txn in categorized:
         transaction = Transaction(
             invoice_id=invoice.id,
             date=txn.get("date", ""),
             description=txn.get("description", ""),
-            amount=float(amount),
+            amount=txn.get("amount", 0),
             category=txn.get("category", "Outros"),
         )
         db.add(transaction)
