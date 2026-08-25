@@ -88,13 +88,13 @@ npm run dev
 ## 📱 Screenshots
 
 ### Dashboard
-![Dashboard](./images/dashboard.png)
+<img src="./images/dashboard.png" alt="Dashboard" width="600">
 
 ### Upload de Fatura
-![Upload](./images/upload.png)
+<img src="./images/upload.png" alt="Upload" width="600">
 
 ### Mobile
-![Mobile](./images/mobile.png)
+<img src="./images/mobile.png" alt="Mobile" width="300">
 
 ## 🏦 Bancos Suportados
 
