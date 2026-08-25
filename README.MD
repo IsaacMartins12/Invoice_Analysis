@@ -87,7 +87,14 @@ npm run dev
 
 ## 📱 Screenshots
 
-<!-- TODO: adicionar screenshots da nova interface -->
+### Dashboard
+![Dashboard](./images/dashboard.png)
+
+### Upload de Fatura
+![Upload](./images/upload.png)
+
+### Mobile
+![Mobile](./images/mobile.png)
 
 ## 🏦 Bancos Suportados
 
