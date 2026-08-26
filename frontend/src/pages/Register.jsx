@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { getErrorMessage } from '../services/errors';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -21,7 +22,7 @@ export default function Register() {
       localStorage.setItem('userName', data.user_name);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error registering');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

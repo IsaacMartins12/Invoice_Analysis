@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { getErrorMessage } from '../services/errors';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -27,7 +28,7 @@ export default function Login() {
       localStorage.setItem('userName', data.user_name);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error logging in');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

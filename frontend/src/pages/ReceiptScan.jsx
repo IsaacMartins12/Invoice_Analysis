@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsQR from 'jsqr';
 import api from '../services/api';
+import { getErrorMessage } from '../services/errors';
 
 export default function ReceiptScan() {
   const [url, setUrl] = useState('');
@@ -120,7 +121,7 @@ export default function ReceiptScan() {
       const { data } = await api.post('/receipts/scan', { url: url.trim() });
       navigate(`/receipts/${data.id}`);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erro ao processar nota fiscal');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

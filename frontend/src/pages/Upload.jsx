@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { getErrorMessage } from '../services/errors';
 
 const LOADING_MESSAGES = [
   '📄 Extraindo texto do PDF...',
@@ -50,7 +51,7 @@ export default function Upload() {
       navigate(`/invoices/${data.id}`);
     } catch (err) {
       clearInterval(interval);
-      setError(err.response?.data?.detail || 'Erro ao processar fatura');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setLoadingMessage('');
