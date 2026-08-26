@@ -2,7 +2,7 @@
 
 **Controle financeiro inteligente com IA local. Seus dados nunca saem do seu computador.**
 
-Faça upload das suas faturas de cartão de crédito em PDF e tenha uma visão completa dos seus gastos — categorizado automaticamente por inteligência artificial, com gráficos interativos e histórico mensal.
+Faça upload das suas faturas de cartão de crédito em PDF e tenha uma visão completa dos seus gastos — categorizado automaticamente por inteligência artificial, com gráficos interativos e histórico mensal. Escaneie notas fiscais de mercado pelo QR Code e saiba exatamente pra onde vai cada centavo.
 
 ## 🔒 Privacidade em Primeiro Lugar
 
@@ -15,14 +15,32 @@ Diferente de apps como Guiabolso, Organizze ou Olivia, este sistema roda **100% 
 
 ## ✨ Funcionalidades
 
+### Faturas de Cartão
 - **Upload de fatura PDF** — suporta Bradesco e Nubank (extensível para outros bancos)
 - **Extração precisa** — regex com 100% de acurácia nos valores
+- **Detecção automática** — banco, mês e ano extraídos automaticamente do PDF
 - **Categorização por IA** — LLM local classifica cada gasto automaticamente
+- **Proteção contra duplicatas** — detecta fatura repetida por conteúdo (hash)
+- **Validação robusta** — PDF inválido, protegido por senha, banco não suportado
+
+### Notas Fiscais de Mercado
+- **Scanner de QR Code** — escaneie o cupom fiscal direto pela câmera do celular
+- **Extração automática** — itens, preços, quantidades e loja
+- **Normalização inteligente** — IA traduz abreviações ("EXTR POM" → "Extrato de Tomate")
+- **Dicionário aprendido** — corrija uma vez, o sistema lembra pra sempre
+
+### Dashboard e Análise
 - **Dashboard interativo** — total gasto, distribuição por categoria, evolução mensal
-- **Drill-down por categoria** — clique em qualquer categoria e veja o histórico completo
-- **Filtros e busca** — encontre qualquer transação por texto, categoria ou período
-- **Mobile-first** — interface responsiva que funciona bem no celular
+- **Drill-down por categoria** — clique e veja o histórico completo
+- **Filtros** — por texto, categoria, mês e ano
+- **Categorias customizáveis** — crie, edite ou renomeie categorias (inclusive as padrão)
+- **Edição de transações** — mude a categoria de qualquer item
+
+### Geral
+- **Mobile-first** — interface responsiva com navegação por abas no celular
 - **Multi-usuário** — cada pessoa com sua conta e seus dados separados
+- **Mensagens de erro amigáveis** — tudo em português, sem erros técnicos
+- **Testes automatizados** — 37 testes unitários cobrindo auth, extração, upload e categorias
 
 ## 🛠️ Stack
 
@@ -32,6 +50,8 @@ Diferente de apps como Guiabolso, Organizze ou Olivia, este sistema roda **100% 
 | Backend | FastAPI (Python) |
 | Banco de dados | PostgreSQL |
 | IA | Ollama (llama3.1:8b) — 100% local |
+| Scanner | jsQR + Web Camera API |
+| Testes | pytest + httpx |
 | Deploy | Docker Compose |
 
 ## 🚀 Como Rodar
@@ -85,6 +105,13 @@ npm install
 npm run dev
 ```
 
+### Rodar testes:
+
+```bash
+cd backend
+python -m pytest tests/ -v
+```
+
 ## 📱 Screenshots
 
 ### Dashboard
@@ -115,20 +142,23 @@ Invoice_Analysis/
 ├── docker-compose.yml
 ├── backend/
 │   ├── app/
-│   │   ├── api/            ← Rotas (auth, invoices, transactions, dashboard)
-│   │   ├── models/         ← User, Invoice, Transaction
+│   │   ├── api/              ← Rotas (auth, invoices, transactions, categories, receipts)
+│   │   ├── models/           ← User, Invoice, Transaction, Category, Receipt, ReceiptItem
 │   │   ├── services/
-│   │   │   ├── extractor.py  ← Regex por banco (100% preciso)
-│   │   │   ├── llm.py        ← Categorização via Ollama
-│   │   │   ├── auth.py       ← JWT auth
-│   │   │   └── pdf.py        ← Extração de texto do PDF
+│   │   │   ├── extractor.py        ← Regex por banco (100% preciso)
+│   │   │   ├── llm.py              ← Categorização via Ollama
+│   │   │   ├── pdf.py              ← Extração e validação de PDF
+│   │   │   ├── receipt_parser.py   ← Parser de NFC-e (nota fiscal)
+│   │   │   ├── product_normalizer.py ← Dicionário + LLM pra nomes de produtos
+│   │   │   └── auth.py             ← JWT auth
 │   │   └── main.py
+│   ├── tests/                ← 37 testes unitários
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/          ← Dashboard, Upload, Invoices, CategoryDetail, Transactions
-│   │   ├── components/     ← Layout com nav mobile
-│   │   └── services/       ← Axios config
+│   │   ├── pages/            ← Dashboard, Upload, Invoices, Transactions, Categories, Receipts
+│   │   ├── components/       ← Layout com nav mobile
+│   │   └── services/         ← Axios config, error handler
 │   └── Dockerfile
 ```
 
@@ -139,6 +169,7 @@ Contribuições são bem-vindas! Especialmente:
 - **Novos bancos** — adicione regex para extrair transações de outros bancos
 - **Melhorias na categorização** — refine o prompt do LLM ou adicione regras
 - **Interface** — melhorias de UX, novos gráficos, dark mode
+- **Testes** — aumente a cobertura
 
 ### Como contribuir
 
