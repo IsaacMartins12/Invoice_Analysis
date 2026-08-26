@@ -14,6 +14,7 @@ export default function Layout() {
   const navItems = [
     { path: '/', label: 'Home', icon: '📊' },
     { path: '/transactions', label: 'Gastos', icon: '💰' },
+    { path: '/receipts', label: 'Mercado', icon: '🛒' },
     { path: '/upload', label: 'Upload', icon: '📤' },
     { path: '/invoices', label: 'Faturas', icon: '📁' },
   ];

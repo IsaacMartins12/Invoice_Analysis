@@ -8,6 +8,9 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import CategoryDetail from './pages/CategoryDetail';
 import Transactions from './pages/Transactions';
 import Categories from './pages/Categories';
+import Receipts from './pages/Receipts';
+import ReceiptScan from './pages/ReceiptScan';
+import ReceiptDetail from './pages/ReceiptDetail';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -35,6 +38,9 @@ export default function App() {
         <Route path="category/:name" element={<CategoryDetail />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="receipts" element={<Receipts />} />
+        <Route path="receipts/scan" element={<ReceiptScan />} />
+        <Route path="receipts/:id" element={<ReceiptDetail />} />
       </Route>
     </Routes>
   );
