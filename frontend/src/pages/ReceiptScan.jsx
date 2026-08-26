@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Html5Qrcode } from 'html5-qrcode';
+import jsQR from 'jsqr';
 import api from '../services/api';
 
 export default function ReceiptScan() {
@@ -9,50 +9,104 @@ export default function ReceiptScan() {
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState('');
-  const scannerRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const animFrameRef = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    return () => {
-      // Cleanup scanner on unmount
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-      }
-    };
-  }, []);
-
-  async function startScanner() {
-    setCameraError('');
-    setScanning(true);
-
-    try {
-      const scanner = new Html5Qrcode('qr-reader');
-      scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          // QR Code detected
-          setUrl(decodedText);
-          scanner.stop().catch(() => {});
-          setScanning(false);
-        },
-        () => {} // ignore errors during scan
-      );
-    } catch (err) {
-      setScanning(false);
-      setCameraError(
-        'Não foi possível acessar a câmera. Verifique as permissões ou cole a URL manualmente.'
-      );
+  const stopCamera = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
     }
-  }
-
-  function stopScanner() {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
     setScanning(false);
+  }, []);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
+
+  async function startCamera() {
+    setCameraError('');
+    setError('');
+    setScanning(true);
+  }
+
+  // Start camera when scanning state changes to true
+  useEffect(() => {
+    if (!scanning) return;
+
+    let cancelled = false;
+
+    async function initCamera() {
+      // Wait for video element to be rendered
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      if (cancelled || !videoRef.current) return;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        const video = videoRef.current;
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        await video.play();
+        scanFrame();
+      } catch (err) {
+        console.error('Camera error:', err);
+        setCameraError(
+          `Não foi possível acessar a câmera: ${err.message}. Verifique as permissões do navegador.`
+        );
+        setScanning(false);
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scanning]);
+
+  function scanFrame() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      animFrameRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    });
+
+    if (code && code.data) {
+      setUrl(code.data);
+      stopCamera();
+      return;
+    }
+
+    animFrameRef.current = requestAnimationFrame(scanFrame);
   }
 
   async function handleSubmit(e) {
@@ -95,34 +149,56 @@ export default function ReceiptScan() {
           <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>
         )}
 
-        {/* QR Scanner */}
-        <div>
-          {!scanning ? (
-            <button
-              onClick={startScanner}
-              className="w-full py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition font-medium text-lg"
-            >
-              📷 Abrir Câmera e Escanear QR Code
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div
-                id="qr-reader"
-                className="w-full rounded-lg overflow-hidden"
+        {/* Camera scanner */}
+        {!scanning ? (
+          <button
+            onClick={startCamera}
+            className="w-full py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition font-medium text-lg"
+          >
+            📷 Abrir Câmera e Escanear QR Code
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div className="relative rounded-lg overflow-hidden bg-black">
+              <video
+                ref={videoRef}
+                className="w-full"
+                playsInline
+                muted
               />
-              <button
-                onClick={stopScanner}
-                className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
-              >
-                Cancelar scan
-              </button>
+              {/* Scan overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-48 h-48 border-2 border-green-400 rounded-lg opacity-70" />
+              </div>
+              <p className="absolute bottom-2 left-0 right-0 text-center text-white text-xs bg-black/50 py-1">
+                Aponte para o QR Code da nota fiscal
+              </p>
             </div>
-          )}
+            <button
+              onClick={stopCamera}
+              className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
 
-          {cameraError && (
-            <p className="text-sm text-orange-600 mt-2">{cameraError}</p>
-          )}
-        </div>
+        {/* Hidden canvas for QR processing */}
+        <canvas ref={canvasRef} className="hidden" />
+
+        {cameraError && (
+          <div className="bg-orange-50 text-orange-700 p-3 rounded-lg text-sm">
+            {cameraError}
+          </div>
+        )}
+
+        {/* URL detected badge */}
+        {url && !scanning && (
+          <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+            <p className="text-xs text-green-600 font-medium mb-1">✅ QR Code detectado!</p>
+            <p className="text-xs text-green-800 break-all">{url.slice(0, 100)}...</p>
+          </div>
+        )}
 
         {/* Divider */}
         <div className="flex items-center gap-3">
@@ -149,16 +225,6 @@ export default function ReceiptScan() {
             Processar Nota Fiscal
           </button>
         </form>
-
-        {/* Help */}
-        <div className="bg-green-50 p-4 rounded-lg text-sm text-green-800">
-          <p className="font-medium mb-1">Como funciona:</p>
-          <ol className="list-decimal ml-4 space-y-1">
-            <li>Aponte a câmera para o QR Code do cupom fiscal</li>
-            <li>A URL será capturada automaticamente</li>
-            <li>Clique em "Processar" para extrair os itens</li>
-          </ol>
-        </div>
       </div>
     </div>
   );
