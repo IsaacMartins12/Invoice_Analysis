@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 
 const EMOJI_MAP = {
@@ -26,6 +27,13 @@ export default function Transactions() {
     category: '',
     search: '',
   });
+  const [allCategories, setAllCategories] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editCategory, setEditCategory] = useState('');
+
+  useEffect(() => {
+    api.get('/categories/').then(({ data }) => setAllCategories(data));
+  }, []);
 
   useEffect(() => {
     const params = {};
@@ -38,11 +46,27 @@ export default function Transactions() {
       .finally(() => setLoading(false));
   }, [filters]);
 
+  async function saveCategory(txnId) {
+    await api.put(`/transactions/${txnId}/category`, { category: editCategory });
+    setTransactions(transactions.map((t) =>
+      t.id === txnId ? { ...t, category: editCategory } : t
+    ));
+    setEditingId(null);
+  }
+
   const total = transactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">💰 Todas as Transações</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold">💰 Todas as Transações</h1>
+        <Link
+          to="/categories"
+          className="text-sm text-indigo-600 hover:underline"
+        >
+          🏷️ Categorias
+        </Link>
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl p-4 border shadow-sm space-y-3">
@@ -103,17 +127,51 @@ export default function Transactions() {
       ) : (
         <div className="bg-white rounded-xl border shadow-sm divide-y overflow-hidden">
           {transactions.map((t) => (
-            <div key={t.id} className="px-4 py-3 flex items-center gap-3">
-              <span className="text-lg">{EMOJI_MAP[t.category] || '📦'}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-800 truncate">{t.description}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {t.date} · {t.invoice_bank || '—'} · {String(t.invoice_month).padStart(2, '0')}/{t.invoice_year}
-                </p>
-              </div>
-              <span className="font-medium text-gray-800 whitespace-nowrap text-sm">
-                R$ {t.amount.toFixed(2)}
-              </span>
+            <div key={t.id} className="px-4 py-3">
+              {editingId === t.id ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="flex-1 px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {allCategories.map((cat) => (
+                      <option key={cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => saveCategory(t.id)}
+                    className="px-3 py-1 bg-indigo-600 text-white rounded text-xs"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="px-3 py-1 bg-gray-200 text-gray-600 rounded text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{EMOJI_MAP[t.category] || '📦'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 truncate">{t.description}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {t.date} · {t.invoice_bank || '—'} · {String(t.invoice_month).padStart(2, '0')}/{t.invoice_year}
+                    </p>
+                  </div>
+                  <span className="font-medium text-gray-800 whitespace-nowrap text-sm">
+                    R$ {t.amount.toFixed(2)}
+                  </span>
+                  <button
+                    onClick={() => { setEditingId(t.id); setEditCategory(t.category); }}
+                    className="text-xs text-indigo-500 hover:underline ml-1"
+                  >
+                    Editar
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

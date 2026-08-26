@@ -7,6 +7,7 @@ import Invoices from './pages/Invoices';
 import InvoiceDetail from './pages/InvoiceDetail';
 import CategoryDetail from './pages/CategoryDetail';
 import Transactions from './pages/Transactions';
+import Categories from './pages/Categories';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="invoices/:id" element={<InvoiceDetail />} />
         <Route path="category/:name" element={<CategoryDetail />} />
         <Route path="transactions" element={<Transactions />} />
+        <Route path="categories" element={<Categories />} />
       </Route>
     </Routes>
   );

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -106,3 +106,29 @@ def list_categories(
         })
 
     return result
+
+
+class UpdateTransactionCategory(BaseModel):
+    category: str
+
+
+@router.put("/{transaction_id}/category")
+def update_transaction_category(
+    transaction_id: int,
+    data: UpdateTransactionCategory,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update the category of a specific transaction."""
+    transaction = (
+        db.query(Transaction)
+        .join(Invoice)
+        .filter(Transaction.id == transaction_id, Invoice.user_id == current_user.id)
+        .first()
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    transaction.category = data.category
+    db.commit()
+    return {"message": "Category updated"}
