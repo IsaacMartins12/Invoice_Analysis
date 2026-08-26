@@ -7,8 +7,8 @@ from app.models.user import User
 from app.models.invoice import Invoice
 from app.models.transaction import Transaction
 from app.services.auth import get_current_user
-from app.services.pdf import extract_text_from_pdf
-from app.services.extractor import extract_transactions
+from app.services.pdf import extract_text_from_pdf, InvalidPDFError, PasswordProtectedPDFError
+from app.services.extractor import extract_transactions, detect_invoice_period
 from app.services.llm import categorize_transactions
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
@@ -64,22 +64,28 @@ class InvoiceListItem(BaseModel):
 @router.post("/upload", response_model=InvoiceOut)
 async def upload_invoice(
     file: UploadFile = File(...),
-    month: int = Form(...),
-    year: int = Form(...),
+    month: int = Form(None),
+    year: int = Form(None),
     bank: str = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Upload a PDF invoice, extract transactions via LLM, and save to database."""
     if not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+        raise HTTPException(status_code=400, detail="Apenas arquivos PDF são aceitos.")
 
     # Read PDF and extract text
     file_bytes = await file.read()
-    pdf_text, pages = extract_text_from_pdf(file_bytes)
+
+    try:
+        pdf_text, pages = extract_text_from_pdf(file_bytes)
+    except InvalidPDFError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PasswordProtectedPDFError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     if not pdf_text.strip():
-        raise HTTPException(status_code=400, detail="Could not extract text from PDF")
+        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do PDF. O arquivo pode estar vazio ou ser uma imagem escaneada.")
 
     # Generate content hash to detect exact duplicates regardless of month/year chosen
     import hashlib
@@ -104,21 +110,34 @@ async def upload_invoice(
     raw_transactions, detected_bank = extract_transactions(pdf_text)
 
     if not raw_transactions:
+        supported_banks = "Bradesco, Nubank"
         raise HTTPException(
             status_code=422,
-            detail="No transactions found. Bank not supported or unrecognized format."
+            detail=f"Nenhuma transação encontrada. Bancos suportados: {supported_banks}. "
+                   f"Se o seu banco não está na lista, abra um issue no GitHub."
         )
 
     # Use detected bank if user didn't provide one
     invoice_bank = bank or detected_bank
+
+    # Auto-detect month/year from invoice content
+    detected_month, detected_year = detect_invoice_period(pdf_text, detected_bank)
+    invoice_month = month if month else detected_month
+    invoice_year = year if year else detected_year
+
+    if not invoice_month or not invoice_year:
+        raise HTTPException(
+            status_code=422,
+            detail="Não foi possível detectar o mês/ano da fatura automaticamente. Por favor, informe manualmente."
+        )
 
     # Check for duplicate invoice (same user + bank + month + year)
     existing = (
         db.query(Invoice)
         .filter(
             Invoice.user_id == current_user.id,
-            Invoice.month == month,
-            Invoice.year == year,
+            Invoice.month == invoice_month,
+            Invoice.year == invoice_year,
             Invoice.bank == invoice_bank,
         )
         .first()
@@ -126,7 +145,7 @@ async def upload_invoice(
     if existing:
         raise HTTPException(
             status_code=409,
-            detail=f"Já existe uma fatura do {invoice_bank} de {month:02d}/{year}. Exclua a anterior se quiser substituir."
+            detail=f"Já existe uma fatura do {invoice_bank} de {invoice_month:02d}/{invoice_year}. Exclua a anterior se quiser substituir."
         )
 
     # Step 2: Categorize with LLM (or fallback to rules)
@@ -139,8 +158,8 @@ async def upload_invoice(
     invoice = Invoice(
         user_id=current_user.id,
         bank=invoice_bank,
-        month=month,
-        year=year,
+        month=invoice_month,
+        year=invoice_year,
         file_name=file.filename,
         content_hash=content_hash,
     )

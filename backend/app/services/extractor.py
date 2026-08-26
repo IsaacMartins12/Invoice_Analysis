@@ -125,3 +125,65 @@ def extract_transactions(text: str) -> tuple[list[dict], str]:
         transactions = []
 
     return transactions, bank
+
+
+MONTH_MAP = {
+    "JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6,
+    "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12,
+    "JANEIRO": 1, "FEVEREIRO": 2, "MARÇO": 3, "ABRIL": 4, "MAIO": 5,
+    "JUNHO": 6, "JULHO": 7, "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10,
+    "NOVEMBRO": 11, "DEZEMBRO": 12,
+}
+
+
+def detect_invoice_period(text: str, bank: str) -> tuple[int | None, int | None]:
+    """Try to detect the invoice month/year from the PDF content.
+    
+    Returns:
+        Tuple of (month, year) or (None, None) if not detected.
+    """
+    text_upper = text.upper()
+
+    if bank == "bradesco":
+        # Bradesco: "Vencimento 05/05/2026"
+        match = re.search(r"VENCIMENTO\s+(\d{2})/(\d{2})/(\d{4})", text_upper)
+        if match:
+            month = int(match.group(2))
+            year = int(match.group(3))
+            return month, year
+
+        # Fallback: "Fatura Mensal" page date pattern
+        match = re.search(r"(\d{2})/(\d{2})/(\d{4})", text)
+        if match:
+            month = int(match.group(2))
+            year = int(match.group(3))
+            return month, year
+
+    elif bank == "nubank":
+        # Nubank: "FATURA 03 MAR 2026"
+        match = re.search(r"FATURA\s+\d{2}\s+(\w{3})\s+(\d{4})", text_upper)
+        if match:
+            month_str = match.group(1)
+            year = int(match.group(2))
+            month = MONTH_MAP.get(month_str, None)
+            if month:
+                return month, year
+
+        # Fallback: "Data de vencimento: 03 MAR 2026"
+        match = re.search(r"VENCIMENTO[:\s]+\d{2}\s+(\w{3})\s+(\d{4})", text_upper)
+        if match:
+            month_str = match.group(1)
+            year = int(match.group(2))
+            month = MONTH_MAP.get(month_str, None)
+            if month:
+                return month, year
+
+    # Generic fallback: look for any date pattern with year
+    match = re.search(r"(\d{2})/(\d{2})/(\d{4})", text)
+    if match:
+        month = int(match.group(2))
+        year = int(match.group(3))
+        if 1 <= month <= 12 and 2020 <= year <= 2030:
+            return month, year
+
+    return None, None
