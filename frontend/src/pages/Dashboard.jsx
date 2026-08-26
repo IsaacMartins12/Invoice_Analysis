@@ -85,30 +85,50 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold mb-3">Gastos por Categoria</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {categoryData.map((cat, index) => (
-            <Link
-              key={cat.name}
-              to={`/category/${encodeURIComponent(cat.name)}`}
-              className="bg-white rounded-xl p-4 border shadow-sm hover:shadow-md transition flex items-center gap-4 active:scale-[0.98]"
-            >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
-                style={{ backgroundColor: `${COLORS[index % COLORS.length]}20` }}
+          {categoryData.map((cat, index) => {
+            const percentage = ((cat.value / summary.total_spending) * 100).toFixed(0);
+            return (
+              <Link
+                key={cat.name}
+                to={`/category/${encodeURIComponent(cat.name)}`}
+                className="bg-white rounded-xl p-4 border shadow-sm hover:shadow-md transition active:scale-[0.98]"
               >
-                {cat.emoji}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 truncate">{cat.name}</p>
-                <p className="text-sm text-gray-400">{cat.count} transações</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-gray-800">R$ {cat.value.toFixed(2)}</p>
-                <p className="text-xs text-gray-400">
-                  {((cat.value / summary.total_spending) * 100).toFixed(0)}%
-                </p>
-              </div>
-            </Link>
-          ))}
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-xl"
+                    style={{ backgroundColor: `${COLORS[index % COLORS.length]}20` }}
+                  >
+                    {cat.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 truncate">{cat.name}</p>
+                    <p className="text-xs text-gray-500">{cat.count} transações</p>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+                  <div
+                    className="h-2 rounded-full transition-all"
+                    style={{
+                      width: `${percentage}%`,
+                      backgroundColor: COLORS[index % COLORS.length],
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span
+                    className="text-sm font-bold"
+                    style={{ color: COLORS[index % COLORS.length] }}
+                  >
+                    {percentage}%
+                  </span>
+                  <span className="text-sm font-bold text-gray-800">
+                    R$ {cat.value.toFixed(2)}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 

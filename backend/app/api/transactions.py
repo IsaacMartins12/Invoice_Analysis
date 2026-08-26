@@ -32,6 +32,8 @@ def list_transactions(
     year: int = Query(None),
     bank: str = Query(None),
     search: str = Query(None),
+    date_from: str = Query(None),
+    date_to: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -52,6 +54,10 @@ def list_transactions(
         query = query.filter(Invoice.bank.ilike(f"%{bank}%"))
     if search:
         query = query.filter(Transaction.description.ilike(f"%{search}%"))
+    if date_from:
+        query = query.filter(Transaction.date >= date_from)
+    if date_to:
+        query = query.filter(Transaction.date <= date_to)
 
     query = query.order_by(Invoice.year.desc(), Invoice.month.desc(), Transaction.id)
     results = query.all()

@@ -6,6 +6,7 @@ export default function Categories() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingDefault, setEditingDefault] = useState(null);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📦');
 
@@ -25,6 +26,7 @@ export default function Categories() {
     setEmoji('📦');
     setShowForm(false);
     setEditingId(null);
+    setEditingDefault(null);
   }
 
   async function handleSubmit(e) {
@@ -32,7 +34,13 @@ export default function Categories() {
     if (!name.trim()) return;
 
     try {
-      if (editingId) {
+      if (editingDefault) {
+        await api.post('/categories/rename-default', {
+          original_name: editingDefault,
+          new_name: name,
+          emoji,
+        });
+      } else if (editingId) {
         await api.put(`/categories/${editingId}`, { name, emoji });
       } else {
         await api.post('/categories/', { name, emoji });
@@ -45,7 +53,13 @@ export default function Categories() {
   }
 
   function startEdit(cat) {
-    setEditingId(cat.id);
+    if (cat.is_default) {
+      setEditingDefault(cat.name);
+      setEditingId(null);
+    } else {
+      setEditingId(cat.id);
+      setEditingDefault(null);
+    }
     setName(cat.name);
     setEmoji(cat.emoji);
     setShowForm(true);
@@ -147,6 +161,14 @@ export default function Categories() {
                   Excluir
                 </button>
               </div>
+            )}
+            {cat.is_default && (
+              <button
+                onClick={() => startEdit(cat)}
+                className="text-xs text-indigo-500 hover:underline"
+              >
+                Editar
+              </button>
             )}
           </div>
         ))}

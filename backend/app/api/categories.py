@@ -47,19 +47,29 @@ def list_categories(
     current_user: User = Depends(get_current_user),
 ):
     """List all categories (default + user-created)."""
-    # Default categories
-    result = [
-        CategoryOut(id=None, name=c["name"], emoji=c["emoji"], is_default=True)
-        for c in DEFAULT_CATEGORIES
-    ]
-
-    # User custom categories
+    # Get user's custom categories
     custom = (
         db.query(Category)
         .filter(Category.user_id == current_user.id)
-        .order_by(Category.name)
+        .order_by(Category.created_at)
         .all()
     )
+    custom_names = {c.name.upper() for c in custom}
+
+    # Default categories (only show if user hasn't overridden them)
+    result = []
+    for c in DEFAULT_CATEGORIES:
+        # Check if user has a custom version of this default category
+        override = next(
+            (cat for cat in custom if cat.name.upper() == c["name"].upper()),
+            None,
+        )
+        if not override:
+            result.append(
+                CategoryOut(id=None, name=c["name"], emoji=c["emoji"], is_default=True)
+            )
+
+    # User custom categories (includes overrides of defaults)
     for c in custom:
         result.append(
             CategoryOut(id=c.id, name=c.name, emoji=c.emoji, is_default=False)
@@ -75,11 +85,6 @@ def create_category(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new custom category."""
-    # Check if name already exists (default or custom)
-    default_names = [c["name"].upper() for c in DEFAULT_CATEGORIES]
-    if data.name.upper() in default_names:
-        raise HTTPException(status_code=400, detail="Category already exists as default")
-
     existing = (
         db.query(Category)
         .filter(Category.user_id == current_user.id, Category.name == data.name)
@@ -98,6 +103,57 @@ def create_category(
     db.refresh(category)
 
     return CategoryOut(id=category.id, name=category.name, emoji=category.emoji, is_default=False)
+
+
+class RenameDefaultRequest(BaseModel):
+    original_name: str
+    new_name: str
+    emoji: str = "📦"
+
+
+@router.post("/rename-default", response_model=CategoryOut)
+def rename_default_category(
+    data: RenameDefaultRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Rename a default category for this user. Creates a custom override."""
+    # Verify it's actually a default category
+    default_names = [c["name"] for c in DEFAULT_CATEGORIES]
+    if data.original_name not in default_names:
+        raise HTTPException(status_code=400, detail="Not a default category")
+
+    # Check if already overridden
+    existing = (
+        db.query(Category)
+        .filter(Category.user_id == current_user.id, Category.name == data.original_name)
+        .first()
+    )
+    if existing:
+        existing.name = data.new_name
+        existing.emoji = data.emoji
+    else:
+        existing = Category(
+            user_id=current_user.id,
+            name=data.new_name,
+            emoji=data.emoji,
+        )
+        db.add(existing)
+
+    # Update all transactions that used the old name
+    transactions = (
+        db.query(Transaction)
+        .join(Invoice)
+        .filter(Invoice.user_id == current_user.id, Transaction.category == data.original_name)
+        .all()
+    )
+    for t in transactions:
+        t.category = data.new_name
+
+    db.commit()
+    db.refresh(existing)
+
+    return CategoryOut(id=existing.id, name=existing.name, emoji=existing.emoji, is_default=False)
 
 
 @router.put("/{category_id}", response_model=CategoryOut)

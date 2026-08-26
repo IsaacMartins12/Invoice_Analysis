@@ -26,6 +26,8 @@ export default function Transactions() {
   const [filters, setFilters] = useState({
     category: '',
     search: '',
+    date_from: '',
+    date_to: '',
   });
   const [allCategories, setAllCategories] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -39,6 +41,8 @@ export default function Transactions() {
     const params = {};
     if (filters.category) params.category = filters.category;
     if (filters.search) params.search = filters.search;
+    if (filters.date_from) params.month = filters.date_from;
+    if (filters.date_to) params.year = filters.date_to;
 
     api.get('/transactions/', { params })
       .then(({ data }) => setTransactions(data))
@@ -62,7 +66,7 @@ export default function Transactions() {
         <h1 className="text-xl font-bold">💰 Todas as Transações</h1>
         <Link
           to="/categories"
-          className="text-sm text-indigo-600 hover:underline"
+          className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-xl hover:bg-indigo-200 transition text-xs font-medium whitespace-nowrap"
         >
           🏷️ Categorias
         </Link>
@@ -78,6 +82,38 @@ export default function Transactions() {
           onChange={(e) => setFilters({ ...filters, search: e.target.value })}
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
+
+        {/* Date range - filter by invoice period */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-xs text-gray-500 mb-1">Mês</label>
+            <select
+              value={filters.date_from}
+              onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Todos</option>
+              {[...Array(12)].map((_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {new Date(2000, i).toLocaleString('pt-BR', { month: 'long' })}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs text-gray-500 mb-1">Ano</label>
+            <select
+              value={filters.date_to}
+              onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Todos</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+        </div>
 
         {/* Category filter chips */}
         <div className="flex flex-wrap gap-2">

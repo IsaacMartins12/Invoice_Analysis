@@ -90,11 +90,28 @@ async def upload_invoice(
             detail="No transactions found. Bank not supported or unrecognized format."
         )
 
-    # Step 2: Categorize with LLM (or fallback to rules)
-    categorized = categorize_transactions(raw_transactions)
-
     # Use detected bank if user didn't provide one
     invoice_bank = bank or detected_bank
+
+    # Check for duplicate invoice (same user + bank + month + year)
+    existing = (
+        db.query(Invoice)
+        .filter(
+            Invoice.user_id == current_user.id,
+            Invoice.month == month,
+            Invoice.year == year,
+            Invoice.bank == invoice_bank,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Já existe uma fatura do {invoice_bank} de {month:02d}/{year}. Exclua a anterior se quiser substituir."
+        )
+
+    # Step 2: Categorize with LLM (or fallback to rules)
+    categorized = categorize_transactions(raw_transactions)
 
     if not categorized:
         raise HTTPException(status_code=422, detail="No transactions found in invoice")
