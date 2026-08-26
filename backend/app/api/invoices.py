@@ -81,6 +81,25 @@ async def upload_invoice(
     if not pdf_text.strip():
         raise HTTPException(status_code=400, detail="Could not extract text from PDF")
 
+    # Generate content hash to detect exact duplicates regardless of month/year chosen
+    import hashlib
+    content_hash = hashlib.sha256(pdf_text.encode()).hexdigest()
+
+    # Check if this exact PDF was already uploaded by this user
+    existing_hash = (
+        db.query(Invoice)
+        .filter(
+            Invoice.user_id == current_user.id,
+            Invoice.content_hash == content_hash,
+        )
+        .first()
+    )
+    if existing_hash:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta fatura já foi enviada anteriormente ({existing_hash.month:02d}/{existing_hash.year})."
+        )
+
     # Step 1: Extract transactions with regex (100% accurate)
     raw_transactions, detected_bank = extract_transactions(pdf_text)
 
@@ -123,6 +142,7 @@ async def upload_invoice(
         month=month,
         year=year,
         file_name=file.filename,
+        content_hash=content_hash,
     )
     db.add(invoice)
     db.flush()

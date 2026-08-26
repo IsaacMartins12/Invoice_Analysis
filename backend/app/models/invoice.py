@@ -14,6 +14,7 @@ class Invoice(Base):
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
     file_name = Column(String, nullable=False)
+    content_hash = Column(String, nullable=True, index=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="invoices")
