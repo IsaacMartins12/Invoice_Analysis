@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:16-alpine
@@ -11,6 +9,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d invoice_analysis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
@@ -18,14 +22,15 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    restart: unless-stopped
     # Uncomment below if you have an NVIDIA GPU:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+       resources:
+         reservations:
+           devices:
+             - driver: nvidia
+               count: 1
+               capabilities: [gpu]
 
   ollama-pull:
     image: ollama/ollama:latest
@@ -46,8 +51,11 @@ services:
       OLLAMA_URL: http://ollama:11434/api/generate
       OLLAMA_MODEL: llama3.1:8b
     depends_on:
-      - db
-      - ollama
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -55,6 +63,7 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   pgdata:

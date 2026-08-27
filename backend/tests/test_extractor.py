@@ -4,6 +4,7 @@ from app.services.extractor import (
     detect_bank,
     extract_bradesco,
     extract_nubank,
+    extract_inter,
     extract_transactions,
     detect_invoice_period,
 )
@@ -19,6 +20,11 @@ def test_detect_bradesco():
 def test_detect_nubank():
     text = "Esta é a sua fatura de março, NuPay transactions"
     assert detect_bank(text) == "nubank"
+
+
+def test_detect_inter():
+    text = "Faça o pagamento pela conta do Inter. Despesas da fatura"
+    assert detect_bank(text) == "inter"
 
 
 def test_detect_unknown():
@@ -84,6 +90,42 @@ def test_nubank_with_parcel():
     txns = extract_nubank(text)
     assert len(txns) == 1
     assert txns[0]["amount"] == 30.0
+
+
+# --- Banco Inter extraction ---
+
+def test_inter_extracts_purchases_and_skips_payment():
+    text = """04 de jun. 2026   PAGAMENTO ON LINE                  -   + R$ 884,12
+27 de nov. 2025   AMAZON BR (Parcela 08 de 08)             -     R$ 74,13
+10 de jun. 2026   OPENAI *CHATGPT SUBSCR                   -     R$ 99,90"""
+    txns = extract_inter(text)
+    assert len(txns) == 2
+    assert txns[0] == {
+        "date": "27 de nov. 2025",
+        "description": "AMAZON BR (Parcela 08 de 08)",
+        "amount": 74.13,
+    }
+    assert txns[1]["amount"] == 99.90
+
+
+def test_inter_accepts_single_space_between_pdf_columns():
+    text = "05 de jun. 2026 IFD*IFOOD CLUB - R$ 5,95"
+    txns = extract_inter(text)
+    assert txns == [{
+        "date": "05 de jun. 2026",
+        "description": "IFD*IFOOD CLUB",
+        "amount": 5.95,
+    }]
+
+
+def test_extract_transactions_inter():
+    text = """Faça o pagamento pela conta do Inter
+Despesas da fatura
+12 de jun. 2026   MP *MAUROAGIOTA (Parcela 01 de 08)       -   R$ 145,93"""
+    txns, bank = extract_transactions(text)
+    assert bank == "inter"
+    assert len(txns) == 1
+    assert txns[0]["amount"] == 145.93
 
 
 # --- Period detection ---
