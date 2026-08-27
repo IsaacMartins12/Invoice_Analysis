@@ -15,6 +15,12 @@ def detect_bank(text: str) -> str:
         return "nubank"
     elif "BRADESCO" in text_upper or "BANCO BRADESCO" in text_upper:
         return "bradesco"
+    elif (
+        "CONTA DO INTER" in text_upper
+        or "07790.00116" in text_upper
+        or ("DESPESAS DA FATURA" in text_upper and "VALOR ANTECIPADO" in text_upper)
+    ):
+        return "inter"
     else:
         return "unknown"
 
@@ -109,6 +115,38 @@ def extract_nubank(text: str) -> list[dict]:
     return transactions
 
 
+def extract_inter(text: str) -> list[dict]:
+    """Extract purchases from a Banco Inter invoice PDF text.
+
+    Pattern: DD de month. YYYY  DESCRIPTION  -  [+] R$ VALUE
+    A leading ``+`` identifies payments/credits and is intentionally skipped.
+    """
+    months = (
+        r"jan(?:\.)?|fev(?:\.)?|mar(?:\.)?|abr(?:\.)?|mai(?:\.)?|jun(?:\.)?|"
+        r"jul(?:\.)?|ago(?:\.)?|set(?:\.)?|out(?:\.)?|nov(?:\.)?|dez(?:\.)?"
+    )
+    pattern = re.compile(
+        rf"^\s*(\d{{2}}\s+de\s+(?:{months})\s+\d{{4}})"
+        rf"\s+([^\r\n]+?)\s+-\s+(\+?)\s*R\$\s*"
+        rf"(\d{{1,3}}(?:\.\d{{3}})*,\d{{2}})\s*$",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    transactions = []
+
+    for date, description, sign, amount in pattern.findall(text):
+        # Banco Inter prints payments as positive credits, e.g. "+ R$ 884,12".
+        if sign == "+" or "PAGAMENTO" in description.upper():
+            continue
+
+        transactions.append({
+            "date": date.strip(),
+            "description": description.strip(),
+            "amount": float(amount.replace(".", "").replace(",", ".")),
+        })
+
+    return transactions
+
+
 def extract_transactions(text: str) -> tuple[list[dict], str]:
     """Extract transactions from invoice text using appropriate regex.
     
@@ -121,6 +159,8 @@ def extract_transactions(text: str) -> tuple[list[dict], str]:
         transactions = extract_bradesco(text)
     elif bank == "nubank":
         transactions = extract_nubank(text)
+    elif bank == "inter":
+        transactions = extract_inter(text)
     else:
         transactions = []
 

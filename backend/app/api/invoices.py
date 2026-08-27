@@ -110,7 +110,7 @@ async def upload_invoice(
     raw_transactions, detected_bank = extract_transactions(pdf_text)
 
     if not raw_transactions:
-        supported_banks = "Bradesco, Nubank"
+        supported_banks = "Bradesco, Nubank, Banco Inter"
         raise HTTPException(
             status_code=422,
             detail=f"Nenhuma transação encontrada. Bancos suportados: {supported_banks}. "
