@@ -129,7 +129,7 @@ python -m pytest tests/ -v
 |-------|--------|
 | Bradesco | ✅ Suportado |
 | Nubank | ✅ Suportado |
-| Inter | 🔜 Em breve |
+| Inter | ✅ Em breve |
 | C6 Bank | 🔜 Em breve |
 | Itaú | 🔜 Em breve |
 
